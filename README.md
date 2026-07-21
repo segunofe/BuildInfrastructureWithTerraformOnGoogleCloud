@@ -90,6 +90,7 @@ touch modules/storage/storage.tf modules/storage/outputs.tf modules/storage/vari
 - `variables.tf`
 - `modules/instances`
 - `modules/storage`
+<img width="975" height="587" alt="image" src="https://github.com/user-attachments/assets/28a4e54f-c7c0-4e82-a333-a062b363cc26" />
 
 Configure:
 
@@ -309,6 +310,7 @@ terraform state list
 ```
 
 ---
+<img width="975" height="378" alt="image" src="https://github.com/user-attachments/assets/2c263159-b8d4-413d-b97b-7d2e56a80c75" />
 
 ## Task 3 — Configure Remote Backend
 
@@ -422,6 +424,8 @@ gsutil ls gs://YOUR-BUCKET-NAME/terraform/state/
 ```
 
 ## You should see a default.tfstate object sitting under that prefix — confirming the remote backend is active and populated.
+<img width="975" height="372" alt="image" src="https://github.com/user-attachments/assets/2e54cc8c-cdf8-4d84-8b06-961eeb3a58fd" />
+
 
 ## Task 4 — Modify Infrastructure
 
@@ -656,6 +660,10 @@ Subnets:
 | subnet-02 | 10.10.20.0/24 |
 
 ---
+<img width="975" height="670" alt="image" src="https://github.com/user-attachments/assets/3ae82bee-da46-488c-9b4f-0b5d44000c23" />
+
+<img width="975" height="490" alt="image" src="https://github.com/user-attachments/assets/88e02c4b-a1c9-4633-ac8a-47f08fea478c" />
+
 
 ## Task 7 — Configure Firewall
 
@@ -736,6 +744,12 @@ gcloud compute firewall-rules describe tf-firewall --format="yaml(name,network,s
 
 terraform state list
 ```
+<img width="975" height="472" alt="image" src="https://github.com/user-attachments/assets/89e9c962-1e9c-48e3-b923-1c6ba502946d" />
+
+<img width="975" height="370" alt="image" src="https://github.com/user-attachments/assets/7b0fbeb7-3041-4236-aca7-2b27282a0ba8" />
+
+
+
 
 ---
 
