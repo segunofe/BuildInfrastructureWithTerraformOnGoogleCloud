@@ -848,7 +848,7 @@ By completing this project, you will gain experience with:
 
 ---
 
-## Author
+## Compiled By
 
 **Segun Ofe**
 
