@@ -31,6 +31,24 @@ In this challenge lab, Terraform is used to:
 
 ---
 
+Install Terraform
+
+```bash
+cat <<'EOF' > ~/.customize_environment
+# Set up HashiCorp repository and install Terraform
+wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update && sudo apt install -y terraform
+EOF
+bash ~/.customize_environment
+```
+
+Verify
+
+```bash
+terraform --version
+```
+
 ## Repository Structure
 
 ```text
@@ -51,11 +69,20 @@ In this challenge lab, Terraform is used to:
 
 ---
 
-# Lab Objectives
+# Objectives
 
 ## Task 1 — Create Terraform Configuration
 
 Create the project structure and Terraform configuration files.
+
+```bash
+touch main.tf variables.tf
+mkdir -p modules/instances modules/storage
+
+
+touch modules/instances/instances.tf modules/instances/outputs.tf modules/instances/variables.tf
+touch modules/storage/storage.tf modules/storage/outputs.tf modules/storage/variables.tf
+```
 
 ### Files Created
 
@@ -70,6 +97,75 @@ Configure:
 - Project variables
 - Region
 - Zone
+
+### 1. Update these variables with your lab values
+
+```bash
+
+REGION="us-east4"       # Replace with your lab region
+ZONE="us-east4-c"       # Replace with your lab zone
+PROJECT_ID="qwiklabs-gcp-03-49b42fxxxxxx" # Replace with your GCP Project ID
+```
+
+### 2. Building the file content
+
+```bash
+VAR_CONTENT=$(cat << EOF
+variable "region" {
+  default = "$REGION"
+}
+
+variable "zone" {
+  default = "$ZONE"
+}
+
+variable "project_id" {
+  default = "$PROJECT_ID"
+}
+EOF
+)
+```
+
+### 3. This code automatically writes the content into all three variables.tf locations
+
+```bash
+echo "$VAR_CONTENT" > variables.tf
+echo "$VAR_CONTENT" > modules/instances/variables.tf
+echo "$VAR_CONTENT" > modules/storage/variables.tf
+```
+
+### 4. Add the Terraform block and the Google Provider to the main.tf file. Verify the zone argument is added along with the project and region arguments in the Google Provider block.
+
+```bash
+cat > main.tf << EOF
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+  zone    = var.zone
+}
+EOF
+```
+
+### 5.
+
+```bash
+terraform init
+
+# verify using
+
+tree .
+```
+
+(If the tree utility isn't installed, you can quickly install it with `sudo apt-get install tree -y` or use `find . -maxdepth 3` instead).
 
 Initialize Terraform:
 
@@ -176,8 +272,8 @@ Features:
 
 Subnets:
 
-| Name | CIDR |
-|-------|------|
+| Name      | CIDR          |
+| --------- | ------------- |
 | subnet-01 | 10.10.10.0/24 |
 | subnet-02 | 10.10.20.0/24 |
 
