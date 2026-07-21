@@ -427,20 +427,91 @@ gsutil ls gs://YOUR-BUCKET-NAME/terraform/state/
 
 Update existing VM instances:
 
-- Change machine type to:
+Navigate to the instances module and modify the `tf-instance-1` resource to use an `e2-standard-2` machine type.
 
-```
-e2-standard-2
-```
+Modify the tf-instance-2 resource to use an e2-standard-2 machine type.
 
-Create an additional Compute Engine instance.
+Add a third instance resource and name it Instance Name. For this third resource, use an e2-standard-2 machine type. Make sure to change the machine type to e2-standard-2 to all the three instances.
 
-Apply changes:
+Initialize Terraform and apply your changes.
+
+Note: Optionally, you can add output values from these resources in the outputs.tf file within the module.
+
+SOLUTION
+
+Step 1: Check your lab instructions for the third instance's name
+Step 2: View your current instances.tf
+
+`cat -n modules/instances/instances.tf`
+
+Step 3: Update the machine type on tf-instance-1 and tf-instance-2
+
+`sed -i 's/machine_type = "e2-medium"/machine_type = "e2-standard-2"/g' modules/instances/instances.tf`
+
+Verify the change:
+
+`grep "machine_type" modules/instances/instances.tf`
+
+Step 4: Add the third instance resource
 
 ```bash
-terraform plan
+cat >> modules/instances/instances.tf << 'EOF'
 
+resource "google_compute_instance" "tf-instance-951871" {
+  name         = "tf-instance-951871"
+  machine_type = "e2-standard-2"
+  zone         = var.zone
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {}
+  }
+
+  metadata_startup_script = <<-EOT
+        #!/bin/bash
+    EOT
+
+  allow_stopping_for_update = true
+}
+EOF
+```
+
+Step 5 (optional): Add outputs
+
+```bash
+cat > modules/instances/outputs.tf << 'EOF'
+output "instance_1_name" {
+  value = google_compute_instance.tf-instance-1.name
+}
+
+output "instance_2_name" {
+  value = google_compute_instance.tf-instance-2.name
+}
+
+output "instance_3_name" {
+  value = google_compute_instance.tf-instance-951871.name
+}
+EOF
+```
+
+Step 6: Initialize and apply
+
+```bash
+terraform init
+terraform plan
 terraform apply
+```
+
+Quick sanity check afterward
+
+```bash
+gcloud compute instances list --format="table(name,machineType.basename(),zone.basename())"
 ```
 
 ---
@@ -460,6 +531,113 @@ Terraform automatically destroys the removed resource.
 ---
 
 ## Task 6 — Create VPC using Terraform Registry Module
+
+1. In the Terraform Registry, browse to the Network Module.
+
+2. Add this module to your main.tf file. Use the following configurations:
+
+- Use version 10.0.0 (different versions might cause compatibility errors).
+- Name the VPC VPC Name, and use a global routing mode.
+- Specify 2 subnets in the region, and name them subnet-01 and subnet-02. For the subnets arguments, you just need the Name, IP, and Region.
+- Use the IP 10.10.10.0/24 for subnet-01, and 10.10.20.0/24 for subnet-02.
+- You do not need any secondary ranges or routes associated with this VPC, so you can omit them from the configuration.
+
+SOLUTION
+
+```bash
+cat >> main.tf << 'EOF'
+
+module "vpc_network" {
+  source  = "terraform-google-modules/network/google"
+  version = "10.0.0"
+
+  project_id   = var.project_id
+  network_name = "tf-vpc-860487"
+  routing_mode = "GLOBAL"
+
+  subnets = [
+    {
+      subnet_name   = "subnet-01"
+      subnet_ip     = "10.10.10.0/24"
+      subnet_region = var.region
+    },
+    {
+      subnet_name   = "subnet-02"
+      subnet_ip     = "10.10.20.0/24"
+      subnet_region = var.region
+    }
+  ]
+}
+EOF
+```
+
+NOTE: Replace "VPC_NAME" with the exact name your lab expects.
+
+The terraform-google-modules/network/google module expects subnets as a list of objects, each needing at minimum subnet_name, subnet_ip, and subnet_region — which matches exactly what the task says you need (Name, IP, Region), so no extra arguments like secondary ranges are required.
+
+3. Once you've written the module configuration, initialize Terraform and run an apply to create the networks.
+
+`terraform init`
+
+Explanation after terraform init
+
+- Pull from Terraform Registry (not just a local ./modules/... path)
+
+```bash
+terraform plan
+terraform apply
+```
+
+Verify:
+
+```bash
+gcloud compute networks subnets list --filter="region:$(gcloud config get-value compute/region)"
+```
+
+4. Next, navigate to the instances.tf file and update the configuration resources to connect tf-instance-1 to subnet-01 and tf-instance-2 to subnet-02.
+
+SOLUTION
+
+```bash
+cat -n modules/instances/instances.tf
+```
+
+For `tf-instance-1`, change its `network_interface` block to:
+
+```bash
+network_interface {
+    network    = "tf-vpc-860487"
+    subnetwork = "subnet-01"
+    access_config {}
+  }
+```
+
+For `tf-instance-2`, change its `network_interface` block to:
+
+```bash
+network_interface {
+    network    = "tf-vpc-860487"
+    subnetwork = "subnet-02"
+    access_config {}
+  }
+```
+
+Note: Within the instance configuration, you will need to update the network argument to VPC Name, and then add the subnetwork argument with the correct subnet for each instance.
+
+```bash
+terraform plan
+
+terraform apply
+```
+
+Important thing to check here: changing the network/subnetwork of an existing instance's network_interface is one of those changes that typically forces recreation (destroy + create) rather than an in-place update — unlike the machine type change earlier.
+
+Quick sanity check afterward
+
+```bash
+gcloud compute instances describe tf-instance-1 --zone=$(gcloud config get-value compute/zone) --format="value(networkInterfaces[0].subnetwork)"
+gcloud compute instances describe tf-instance-2 --zone=$(gcloud config get-value compute/zone) --format="value(networkInterfaces[0].subnetwork)"
+```
 
 Use the official Terraform Google Network module.
 
@@ -490,6 +668,73 @@ Configuration:
 
 ```
 0.0.0.0/0
+```
+
+SOLUTION
+
+Step 1: Find the network's self_link/ID from Terraform state
+
+```bash
+terraform state show module.vpc_network.google_compute_network.network
+```
+
+Look for the self_link or id field in the output — it'll look like:
+
+```bash
+projects/YOUR_PROJECT_ID/global/networks/VPC_NAME
+```
+
+You can also list all outputs the module provides:
+
+`terraform state list | grep vpc_network`
+
+Step 2: Create a firewall rule resource in the main.tf file, and name it tf-firewall.
+This firewall rule should permit the VPC Name network to allow ingress connections on all IP ranges (0.0.0.0/0) on TCP port 80.
+Make sure you add the source_ranges argument with the correct IP range (0.0.0.0/0).
+
+```bash
+cat >> main.tf << 'EOF'
+
+resource "google_compute_firewall" "tf-firewall" {
+  name    = "tf-firewall"
+  network = module.vpc_network.network_self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+EOF
+```
+
+`----network = module.vpc_network.network_self_link` — this is the cleanest way to reference the network, since it pulls the value directly from the module's output rather than hardcoding a string. The `terraform-google-modules/network/google` module exposes `network_self_link` as a standard output, so this should resolve correctly without you needing to hand-type the project ID/VPC name.
+-- If for some reason that output name doesn't exist in your module version, check available outputs with:
+
+```bash
+terraform state show module.vpc_network.google_compute_network.network
+```
+
+```bash
+terraform state list
+```
+
+Initialize Terraform and apply your changes.
+
+```bash
+terraform init
+terraform plan
+```
+
+Note: To retrieve the required network argument, you can inspect the state and find the ID or self_link of the google_compute_network resource you created. It will be in the form projects/PROJECT_ID/global/networks/VPC Name.
+
+Step 4: Verify
+
+```bash
+gcloud compute firewall-rules describe tf-firewall --format="yaml(name,network,sourceRanges,allowed)"
+
+terraform state list
 ```
 
 ---
