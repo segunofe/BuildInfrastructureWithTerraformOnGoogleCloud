@@ -6,7 +6,7 @@ The project demonstrates how to provision, import, modify, and manage Google Clo
 
 ## Project Overview
 
-In this challenge lab, Terraform is used to:
+In this project, Terraform is used to:
 
 - Import existing Compute Engine instances into Terraform state
 - Build reusable Terraform modules
